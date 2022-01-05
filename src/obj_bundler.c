@@ -8,6 +8,7 @@
 #define ARG__OUTPUT_FILENAME "--out"
 #define ARG__PRESERVE_COMMENTS "--preserve-comments"
 #define ARG__PRESERVE_GROUP_NAMES "--preserve-group-names"
+#define ARG__INCLUDE_W_COORDS "--include-w-coords"
 #define ARG__MTL_TAB_SPACE "--mtl-tab-space="
 #define ARG__SET_DATA_LIMIT "--set-data-limit="
 #define ARG__HELP "--help"
@@ -31,17 +32,28 @@
 #define LINE_BUFFER_LEN 100
 #define DEFAULT_DATA_LIMIT 1000000
 #define MAX_DATA_LIMIT 99999999
+#define V_BUFFER_LEN 4
+#define VTVPVNF_BUFFER_LEN 3
 #define VALUE_BUFFER_LEN 50
+#define L_BUFFER_LEN 6
 
 char *_input_filename;
 char *_output_filename;
 
 bool _input_file_provided = false;
 bool _preserve_comments = false;
+bool _include_w_coords = false;
 bool _preserve_group_names = false;
 
 int _mtl_spacing = MIN_MTL_SPACE;
 unsigned int _data_limit = DEFAULT_DATA_LIMIT;
+
+double **_data_v;
+double **_data_vt;
+double **_data_vp;
+double **_data_vn;
+char ***_data_f;
+int **_data_l;
 
 void _BUNDLER_HELP() {
 	
@@ -91,8 +103,12 @@ int main( int argc, char* argv[] ) {
 	
 	// Process user input arguments
 	
+	bool ignore_next_arg = false;
 	for( int i = 1; i < argc; i++ ) {
-		if( strcmp(argv[i], ARG__INPUT_FILENAME ) == 0 ) {
+		if( ignore_next_arg ) {
+			ignore_next_arg = !ignore_next_arg;
+		}
+		else if( strcmp( argv[i], ARG__INPUT_FILENAME ) == 0 ) {
 			
 			// IF no input filename provided, error out
 			if(argc == i + 1) {
@@ -106,6 +122,7 @@ int main( int argc, char* argv[] ) {
 				if( _verify_file_extension( argv[i + 1], INPUT_FILE_EXT ) ) {
 					_input_filename = argv[i + 1];
 					_input_file_provided = true;
+					ignore_next_arg = true;
 				}
 				else {
 					_BUNDLER_ERROR( _ERROR_INVALID_INPUT_FILE_PROVIDED, argv[i + 1] );
@@ -113,11 +130,14 @@ int main( int argc, char* argv[] ) {
 				}
 			}
 		}
-		else if( strcmp( argv[i], ARG__PRESERVE_COMMENTS ) == 0) {
+		else if( strcmp( argv[i], ARG__PRESERVE_COMMENTS ) == 0 ) {
 			_preserve_comments = true;
 		}
-		else if( strcmp( argv[i], ARG__PRESERVE_GROUP_NAMES ) == 0) {
+		else if( strcmp( argv[i], ARG__PRESERVE_GROUP_NAMES ) == 0 ) {
 			_preserve_group_names = true;
+		}
+		else if( strcmp( argv[i], ARG__INCLUDE_W_COORDS ) == 0 ) {
+			_include_w_coords = true;
 		}
 		else if( strcmp( argv[i], ARG__OUTPUT_FILENAME ) == 0 ) {
 			if(argc == i + 1) {
@@ -129,6 +149,7 @@ int main( int argc, char* argv[] ) {
 				// and toggle input boolean
 				if( _verify_file_extension( argv[i + 1], OUTPUT_FILE_EXT ) ) {
 					_output_filename = argv[i + 1];
+					ignore_next_arg = true;
 				}
 				else {
 					_BUNDLER_ERROR( _ERROR_INVALID_OUTPUT_FILE_PROVIDED, argv[i + 1] );
@@ -249,6 +270,21 @@ int main( int argc, char* argv[] ) {
 		_output_filename[ pf_len + out_ext_len + 1 ] = '\0';
 	}
 	
+	// Initialize data buffers
+	_data_v = (double **) malloc( _data_limit );
+	_data_vt = (double **) malloc( _data_limit );
+	_data_vp = (double **) malloc( _data_limit );
+	_data_vn = (double **) malloc( _data_limit );
+	_data_f = (char ***) malloc( _data_limit );
+	_data_l = (int **) malloc( _data_limit );
+	
+	int v_index = 0;
+	int vt_index = 0;
+	int vp_index = 0;
+	int vn_index = 0;
+	int f_index = 0;
+	int l_index = 0;
+	
 	FILE *in_handle = fopen( _input_filename, "r" );
 	FILE *out_handle = fopen( _output_filename, "w" );
 	
@@ -258,15 +294,78 @@ int main( int argc, char* argv[] ) {
 	}
 	
 	char *line_buffer = (char *) malloc( LINE_BUFFER_LEN );
-	while( fgets( line_buffer, LINE_BUFFER_LEN, in_handle ) ) {
-		switch( line_buffer[ 0 ] ) {
-			case 'v':
-				if( line_buffer[ 1 ] == 't' ) {
-					
-				}
-			break;
+	while( fgets( line_buffer, LINE_BUFFER_LEN, in_handle ) != NULL )  {
+		
+		// TODO: Check for mtllib and g
+		printf("%s", line_buffer);
+		
+		if( line_buffer[ 0 ] == 'v' ) {
+			if( line_buffer[ 1 ] == 't' ) {
+				_data_vt[ vt_index ] = (double *) malloc( VTVPVNF_BUFFER_LEN );
+				char *ignore_item = (char *) malloc(2);
+				
+				sscanf( line_buffer, "%s %lf %lf %lf %lf", ignore_item, &( _data_vt[ vt_index ][ 0 ] ),
+					&( _data_vt[ vt_index ][ 1 ] ), &( _data_vt[ vt_index ][ 2 ] ),
+					&( _data_vt[ vt_index ][ 3 ] ) );
+				++vt_index;
+			}
+			else if( line_buffer[ 1 ] == 'p' ) {
+				_data_vp[ vp_index ] = (double *) malloc( VTVPVNF_BUFFER_LEN );
+				char *ignore_item = (char *) malloc(2);
+				
+				sscanf( line_buffer, "%s %lf %lf %lf", ignore_item, &( _data_vp[ vp_index ][ 0 ] ),
+					&( _data_vp[ vp_index ][ 1 ] ), &( _data_vp[ vp_index ][ 2 ] ) );
+				++vp_index;
+			}
+			else if( line_buffer[ 1 ] == 'n' ) {
+				_data_vn[ vn_index ] = (double *) malloc( VTVPVNF_BUFFER_LEN );
+				char *ignore_item = (char *) malloc(2);
+				
+				sscanf( line_buffer, "%s %lf %lf %lf", ignore_item, &( _data_vn[ vn_index ][ 0 ] ),
+					&( _data_vn[ vn_index ][ 1 ] ), &( _data_vn[ vn_index ][ 2 ] ) );
+				++vn_index;
+			}
+			else {
+				_data_v[ v_index ] = (double *) malloc( V_BUFFER_LEN );
+				char *ignore_item = (char *) malloc(2);
+				
+				sscanf( line_buffer, "%s %lf %lf %lf %lf", &( _data_v[ v_index ][ 0 ] ),
+					&( _data_v[ v_index ][ 1 ] ), &( _data_v[ v_index ][ 2 ] ),
+					&( _data_v[ v_index ][ 3 ] ) );
+				++v_index;
+			}
+		}
+		else if( line_buffer[ 0 ] == 'f' ) {
+			_data_f[ f_index ] = (char **) malloc( VTVPVNF_BUFFER_LEN );
+			for( int i = 0; i < VTVPVNF_BUFFER_LEN; i++ ) {
+				_data_f[ f_index ][ i ] = (char *) malloc( VALUE_BUFFER_LEN );
+			}
+			char *ignore_item = (char *) malloc(2);
+			
+			sscanf( line_buffer, "%s %s %s %s", ignore_item, &( _data_f[ f_index ][ 0 ] ),
+				&( _data_f[ f_index ][ 1 ] ), &( _data_f[ f_index ][ 2 ] ) );
+			++f_index;
+		}
+		else if( line_buffer[ 0 ] == 'l' ) {
+			_data_l[ l_index ] = (int *) malloc( L_BUFFER_LEN );
+			char *ignore_item = (char *) malloc(2);
+			
+			sscanf( line_buffer, "%s %d %d %d %d %d %d", ignore_item, &( _data_l[ l_index ][ 0 ] ),
+				&( _data_l[ l_index ][ 1 ] ), &( _data_l[ l_index ][ 2 ] ),
+				&( _data_l[ l_index ][ 3 ] ), &( _data_l[ l_index ][ 4 ] ),
+				&( _data_l[ l_index ][ 5 ] ) );
+			++l_index;
+		}
+		else if( line_buffer[ 0 ] == 'g' ) {
+			
+		}
+		else {
+			
 		}
 	}
+	
+	fclose( in_handle );
+	fclose( out_handle );
 	
 	return EXIT_SUCCESS;
 }
