@@ -31,10 +31,10 @@
 #define MAX_MTL_SPACE 10
 
 #define LINE_BUFFER_LEN 1000
-#define DEFAULT_DATA_LIMIT 1000000
+#define DEFAULT_DATA_LIMIT 10000000
 #define MAX_DATA_LIMIT 99999999
-#define V_BUFFER_LEN 4
-#define VTVPVNF_BUFFER_LEN 3
+#define VF_BUFFER_LEN 4
+#define VTVPVN_BUFFER_LEN 3
 #define VALUE_BUFFER_LEN 50
 #define L_BUFFER_LEN 6
 #define MTL_FILENAME_BUFFER_LEN 50
@@ -79,7 +79,7 @@ int _mtl_spacing = MIN_MTL_SPACE;
 unsigned int _data_limit = DEFAULT_DATA_LIMIT;
 
 OBJGroup **obj_groups;
-char ** data_header_comments;
+char **data_header_comments;
 
 void _BUNDLER_HELP() {
 	
@@ -351,24 +351,34 @@ int main( int argc, char* argv[] ) {
 			header_parsed = true;
 			
 			if( line_buffer[ 1 ] == 't' ) {
-				cobjg->data_vt[ cobjg->vt_index ] = (double *) malloc( VTVPVNF_BUFFER_LEN );
+				cobjg->data_vt[ cobjg->vt_index ] = (double *) malloc( sizeof( double ) * VTVPVN_BUFFER_LEN );
 				char *ignore_item = (char *) malloc(2);
 				
-				sscanf( line_buffer, "%s %lf %lf %lf %lf", ignore_item, &( cobjg->data_vt[ cobjg->vt_index ][ 0 ] ),
-					&( cobjg->data_vt[ cobjg->vt_index ][ 1 ] ), &( cobjg->data_vt[ cobjg->vt_index ][ 2 ] ),
-					&( cobjg->data_vt[ cobjg->vt_index ][ 3 ] ) );
+				if( sscanf( line_buffer, "%s %lf %lf %lf", ignore_item, &( cobjg->data_vt[ cobjg->vt_index ][ 0 ] ),
+					&( cobjg->data_vt[ cobjg->vt_index ][ 1 ] ), &( cobjg->data_vt[ cobjg->vt_index ][ 2 ] ) ) == 3 ) {
+					
+					cobjg->data_vt[ cobjg->vt_index ][ 2 ] = 0.0f;
+				}
 				++cobjg->vt_index;
 			}
 			else if( line_buffer[ 1 ] == 'p' ) {
-				cobjg->data_vp[ cobjg->vp_index ] = (double *) malloc( VTVPVNF_BUFFER_LEN );
+				cobjg->data_vp[ cobjg->vp_index ] = (double *) malloc( sizeof( double ) * VTVPVN_BUFFER_LEN );
 				char *ignore_item = (char *) malloc(2);
 				
-				sscanf( line_buffer, "%s %lf %lf %lf", ignore_item, &( cobjg->data_vp[ cobjg->vp_index ][ 0 ] ),
+				int vp_values_scanned = sscanf( line_buffer, "%s %lf %lf %lf", ignore_item, &( cobjg->data_vp[ cobjg->vp_index ][ 0 ] ),
 					&( cobjg->data_vp[ cobjg->vp_index ][ 1 ] ), &( cobjg->data_vp[ cobjg->vp_index ][ 2 ] ) );
+					
+				if( vp_values_scanned == 2 ) {
+					cobjg->data_vp[ cobjg->vp_index ][ 2 ] = 0.0f;
+					cobjg->data_vp[ cobjg->vp_index ][ 3 ] = 0.0f;
+				}
+				else if( vp_values_scanned == 3 ) {
+					cobjg->data_vp[ cobjg->vp_index ][ 3 ] = 0.0f;
+				}
 				++cobjg->vp_index;
 			}
 			else if( line_buffer[ 1 ] == 'n' ) {
-				cobjg->data_vn[ cobjg->vn_index ] = (double *) malloc( VTVPVNF_BUFFER_LEN );
+				cobjg->data_vn[ cobjg->vn_index ] = (double *) malloc( sizeof( double ) * VTVPVN_BUFFER_LEN );
 				char *ignore_item = (char *) malloc(2);
 				
 				sscanf( line_buffer, "%s %lf %lf %lf", ignore_item, &( cobjg->data_vn[ cobjg->vn_index ][ 0 ] ),
@@ -376,12 +386,15 @@ int main( int argc, char* argv[] ) {
 				++cobjg->vn_index;
 			}
 			else {
-				cobjg->data_v[ cobjg->v_index ] = (double *) malloc( V_BUFFER_LEN );
-				char *ignore_item = (char *) malloc(2);
+				cobjg->data_v[ cobjg->v_index ] = (double *) malloc( sizeof( double ) * VF_BUFFER_LEN );
+				char *ignore_item = (char *) malloc(1);
 				
-				sscanf( line_buffer, "%s %lf %lf %lf %lf", ignore_item, &( cobjg->data_v[ cobjg->v_index ][ 0 ] ),
+				if( sscanf( line_buffer, "%s %lf %lf %lf %lf", ignore_item, &( cobjg->data_v[ cobjg->v_index ][ 0 ] ),
 					&( cobjg->data_v[ cobjg->v_index ][ 1 ] ), &( cobjg->data_v[ cobjg->v_index ][ 2 ] ),
-					&( cobjg->data_v[ cobjg->v_index ][ 3 ] ) );
+					&( cobjg->data_v[ cobjg->v_index ][ 3 ] ) ) == 4 ) {
+
+					cobjg->data_v[ cobjg->v_index ][ 3 ] = 1.0f;
+				}
 				++cobjg->v_index;
 			}
 		}
@@ -389,22 +402,23 @@ int main( int argc, char* argv[] ) {
 			
 			header_parsed = true;
 			
-			cobjg->data_f[ cobjg->f_index ] = (char **) malloc( VTVPVNF_BUFFER_LEN );
-			for( int i = 0; i < VTVPVNF_BUFFER_LEN; i++ ) {
+			cobjg->data_f[ cobjg->f_index ] = (char **) malloc( sizeof( char * ) * VF_BUFFER_LEN );
+			for( int i = 0; i < VF_BUFFER_LEN; i++ ) {
 				cobjg->data_f[ cobjg->f_index ][ i ] = (char *) malloc( VALUE_BUFFER_LEN );
 			}
-			char *ignore_item = (char *) malloc(2);
+			char *ignore_item = (char *) malloc(1);
 			
-			sscanf( line_buffer, "%s %s %s %s", ignore_item, &( cobjg->data_f[ cobjg->f_index ][ 0 ] ),
-				&( cobjg->data_f[ cobjg->f_index ][ 1 ] ), &( cobjg->data_f[ cobjg->f_index ][ 2 ] ) );
+			sscanf( line_buffer, "%s %s %s %s %s", ignore_item, cobjg->data_f[ cobjg->f_index ][ 0 ],
+				cobjg->data_f[ cobjg->f_index ][ 1 ], cobjg->data_f[ cobjg->f_index ][ 2 ],
+				cobjg->data_f[ cobjg->f_index ][ 3 ] );
 			++cobjg->f_index;
 		}
 		else if( line_buffer[ 0 ] == 'l' ) {
 			
 			header_parsed = true;
 			
-			cobjg->data_l[ cobjg->l_index ] = (int *) malloc( L_BUFFER_LEN );
-			char *ignore_item = (char *) malloc(2);
+			cobjg->data_l[ cobjg->l_index ] = (int *) malloc( sizeof( int ) * L_BUFFER_LEN );
+			char *ignore_item = (char *) malloc(1);
 			
 			sscanf( line_buffer, "%s %d %d %d %d %d %d", ignore_item, &( cobjg->data_l[ cobjg->l_index ][ 0 ] ),
 				&( cobjg->data_l[ cobjg->l_index ][ 1 ] ), &( cobjg->data_l[ cobjg->l_index ][ 2 ] ),
@@ -424,16 +438,19 @@ int main( int argc, char* argv[] ) {
 				cobjg = obj_groups[ obj_index ];
 			}
 			char *scanned_name = (char *) malloc( GROUP_NAME_BUFFER_LEN );
-			char *ignore_item = (char *) malloc(2);
+			char *ignore_item = (char *) malloc(1);
 			
 			sscanf( line_buffer, "%s %s", ignore_item, scanned_name );
-			strncpy( cobjg->name, scanned_name, GROUP_NAME_BUFFER_LEN );
+			
+			int scan_name_len = strlen( scanned_name );
+			strncpy( cobjg->name, scanned_name, scan_name_len );
+			cobjg->name[ scan_name_len ] = '\0';
 			
 			header_parsed = true;
 		}
 		else if( line_buffer[ 0 ] == 's' ) {
 			char *shading = (char *) malloc( SHADING_BUFFER_LEN );
-			char *ignore_item = (char *) malloc(2);
+			char *ignore_item = (char *) malloc(1);
 			
 			sscanf( line_buffer, "%s %s", ignore_item, shading );
 			strncpy( cobjg->shading, shading, SHADING_BUFFER_LEN );
@@ -451,7 +468,7 @@ int main( int argc, char* argv[] ) {
 				char *initial_name_store = (char *) malloc( MTL_FILENAME_BUFFER_LEN );
 				char *fallback_name_store = (char *) malloc( MTL_FILENAME_BUFFER_LEN );
 				
-				char *ignore_item = (char *) malloc(2);
+				char *ignore_item = (char *) malloc( sizeof( "mtllib" ) );
 				sscanf( line_buffer, "%s %s %s", ignore_item, initial_name_store,
 					fallback_name_store );
 					
@@ -470,7 +487,7 @@ int main( int argc, char* argv[] ) {
 					
 					char *mtl_name = (char *) malloc( MTL_NAME_BUFFER_LEN );
 					
-					char *ignore_item = (char *) malloc(2);
+					char *ignore_item = (char *) malloc( sizeof( "usemtl" ) );
 					sscanf( line_buffer, "%s %s", ignore_item, mtl_name );
 					
 					cobjg->data_mtls[ cobjg->mtls_index ] = mtl_name;
@@ -480,7 +497,18 @@ int main( int argc, char* argv[] ) {
 			}
 		}
 	}
-	free( line_buffer );
+	
+	// Print the header comments
+	if(_preserve_header_comments) {
+		int trav_idx = 0;
+		char *hc_trav = data_header_comments[ 0 ];
+		
+		while( hc_trav != NULL ) {
+			fprintf( out_handle, "%s", hc_trav );
+			hc_trav = data_header_comments[ ++trav_idx ];
+		}
+	}
+	
 	fclose( in_handle );
 	fclose( out_handle );
 	
