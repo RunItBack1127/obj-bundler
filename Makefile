@@ -2,12 +2,13 @@ CC=gcc
 CFLAGS=-g -Wall
 RM=rm
 DIR=src
-TARGET=objbundler
+TARGET_NAME=objbundler
+TARGET_DEP=obj_bundler
 
-all: $(TARGET)
+all: $(TARGET_NAME)
 
-$(TARGET): $(TARGET).c
-	$(CC) -o $(TARGET) $(DIR)/$(TARGET).c
+$(TARGET_NAME): $(TARGET_DEP).c
+	$(CC) -o $(TARGET_NAME) $(DIR)/$(TARGET_DEP).c
 	
 clean:
-	$(RM) $(TARGET)
+	$(RM) $(DIR)/$(TARGET_NAME)
