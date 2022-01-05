@@ -500,12 +500,103 @@ int main( int argc, char* argv[] ) {
 	
 	// Print the header comments
 	if(_preserve_header_comments) {
-		int trav_idx = 0;
-		char *hc_trav = data_header_comments[ 0 ];
+		for( int i = 0; i < hc_index; i++ ) {
+			fprintf( out_handle, "%s", data_header_comments[ i ] );
+		}
+	}
+	if( _include_w_coords ) {
+		fprintf( out_handle, "%s\n", "INCLUDE_W_COORDS" );
+	}
+	
+	for( int i = 0; i < obj_index; i++ ) {
 		
-		while( hc_trav != NULL ) {
-			fprintf( out_handle, "%s", hc_trav );
-			hc_trav = data_header_comments[ ++trav_idx ];
+		fprintf( out_handle, "g %s\n", obj_groups[ i ]->name );
+		
+		// Print vertex data
+		fprintf( out_handle, "%s", "v " );
+		for( int s = 0; s < obj_groups[ i ]->v_index; s++ ) {
+			if( _include_w_coords ) {
+				fprintf( out_handle, "%lf %lf %lf %lf",
+					obj_groups[ i ]->data_v[ s ][ 0 ],
+					obj_groups[ i ]->data_v[ s ][ 1 ],
+					obj_groups[ i ]->data_v[ s ][ 2 ],
+					obj_groups[ i ]->data_v[ s ][ 3 ] );
+			}
+			else {
+				fprintf( out_handle, "%lf %lf %lf",
+					obj_groups[ i ]->data_v[ s ][ 0 ],
+					obj_groups[ i ]->data_v[ s ][ 1 ],
+					obj_groups[ i ]->data_v[ s ][ 2 ] );	
+			}
+			if( s < obj_groups[ i ]->v_index - 1 ) {
+				fprintf( out_handle, "%s", " " );
+			}
+		}
+		fprintf( out_handle, "%s", "\n" );
+		
+		// Print vertex texture data
+		fprintf( out_handle, "%s", "vt " );
+		for( int s = 0; s < obj_groups[ i ]->vt_index; s++ ) {
+			fprintf( out_handle, "%lf %lf %lf",
+				obj_groups[ i ]->data_vt[ s ][ 0 ],
+				obj_groups[ i ]->data_vt[ s ][ 1 ],
+				obj_groups[ i ]->data_vt[ s ][ 2 ] );
+			if( s < obj_groups[ i ]->vt_index - 1 ) {
+				fprintf( out_handle, "%s", " " );
+			}
+		}
+		fprintf( out_handle, "%s", "\n" );
+		
+		// Print vertex parameter data
+		fprintf( out_handle, "%s", "vp " );
+		for( int s = 0; s < obj_groups[ i ]->vp_index; s++ ) {
+			fprintf( out_handle, "%lf %lf %lf",
+				obj_groups[ i ]->data_vp[ s ][ 0 ],
+				obj_groups[ i ]->data_vp[ s ][ 1 ],
+				obj_groups[ i ]->data_vp[ s ][ 2 ] );
+			if( s < obj_groups[ i ]->vp_index - 1 ) {
+				fprintf( out_handle, "%s", " " );
+			}
+		}
+		
+		// Print vertex normal data
+		fprintf( out_handle, "%s", "vn " );
+		for( int s = 0; s < obj_groups[ i ]->vn_index; s++ ) {
+			fprintf( out_handle, "%lf %lf %lf",
+				obj_groups[ i ]->data_vn[ s ][ 0 ],
+				obj_groups[ i ]->data_vn[ s ][ 1 ],
+				obj_groups[ i ]->data_vn[ s ][ 2 ] );
+			if( s < obj_groups[ i ]->vn_index - 1 ) {
+				fprintf( out_handle, "%s", " " );
+			}
+		}
+		
+		// Print face data
+		fprintf( out_handle, "%s", "f " );
+		for( int s = 0; s < obj_groups[ i ]->f_index; s++ ) {
+			fprintf( out_handle, "%lf %lf %lf %lf",
+				obj_groups[ i ]->data_f[ s ][ 0 ],
+				obj_groups[ i ]->data_f[ s ][ 1 ],
+				obj_groups[ i ]->data_f[ s ][ 2 ],
+				obj_groups[ i ]->data_f[ s ][ 3 ] );
+			if( s < obj_groups[ i ]->f_index - 1 ) {
+				fprintf( out_handle, "%s", " " );
+			}
+		}
+		
+		// Print line data
+		fprintf( out_handle, "%s", "l " );
+		for( int s = 0; s < obj_groups[ i ]->l_index; s++ ) {
+			fprintf( out_handle, "%d %d %d %d %d %d",
+				obj_groups[ i ]->data_l[ s ][ 0 ],
+				obj_groups[ i ]->data_l[ s ][ 1 ],
+				obj_groups[ i ]->data_l[ s ][ 2 ],
+				obj_groups[ i ]->data_l[ s ][ 3 ],
+				obj_groups[ i ]->data_l[ s ][ 4 ],
+				obj_groups[ i ]->data_l[ s ][ 5 ] );
+			if( s < obj_groups[ i ]->l_index - 1 ) {
+				fprintf( out_handle, "%s", " " );
+			}
 		}
 	}
 	
