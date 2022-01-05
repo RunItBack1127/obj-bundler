@@ -3,27 +3,9 @@
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
-
-#define ARG__INPUT_FILENAME "--in"
-#define ARG__OUTPUT_FILENAME "--out"
-#define ARG__PRESERVE_HEADER_COMMENTS "--preserve-header-comments"
-#define ARG__PRESERVE_GROUP_NAMES "--preserve-group-names"
-#define ARG__INCLUDE_W_COORDS "--include-w-coords"
-#define ARG__MTL_TAB_SPACE "--mtl-tab-space="
-#define ARG__SET_DATA_LIMIT "--set-data-limit="
-#define ARG__HELP "--help"
-
-#define _ERROR_NO_INPUT_FILE_PROVIDED 100
-#define _ERROR_NO_OUTPUT_FILE_PROVIDED 101
-#define _ERROR_NO_MTL_SPACE_PROVIDED 102
-#define _ERROR_NO_DATA_LIMIT_PROVIDED 103
-#define _ERROR_INVALID_INPUT_FILE_PROVIDED 104
-#define _ERROR_INVALID_OUTPUT_FILE_PROVIDED 105
-#define _ERROR_INVALID_MTL_SPACE_PROVIDED 106
-#define _ERROR_INVALID_DATA_LIMIT_PROVIDED 107
-#define _ERROR_EXCESS_DATA_LIMIT_PROVIDED 108
-#define _ERROR_IO_ERROR_OCCURRED 109
-#define _ERROR_INVALID_COMMAND_PROVIDED 110
+#include "obj_bundler.h"
+#include "commands.h"
+#include "errors.h"
 
 #define INPUT_FILE_EXT "obj"
 #define OUTPUT_FILE_EXT "objb"
@@ -43,29 +25,6 @@
 #define OBJ_GROUP_BUFFER_LEN 1000
 #define GROUP_NAME_BUFFER_LEN 100
 #define SHADING_BUFFER_LEN 3
-
-typedef struct OBJGroup {
-	char *name;
-	
-	double **data_v;
-	double **data_vt;
-	double **data_vp;
-	double **data_vn;
-	char ***data_f;
-	char **data_mtllib;
-	char **data_mtls;
-	char *shading;
-	int **data_l;
-	
-	int v_index;
-	int vt_index;
-	int vp_index;
-	int vn_index;
-	int f_index;
-	int mtllib_index;
-	int mtls_index;
-	int l_index;
-} OBJGroup;
 
 char *_input_filename;
 char *_output_filename;
