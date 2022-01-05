@@ -6,7 +6,7 @@
 
 #define ARG__INPUT_FILENAME "--in"
 #define ARG__OUTPUT_FILENAME "--out"
-#define ARG__PRESERVE_COMMENTS "--preserve-comments"
+#define ARG__PRESERVE_HEADER_COMMENTS "--preserve-header-comments"
 #define ARG__PRESERVE_GROUP_NAMES "--preserve-group-names"
 #define ARG__INCLUDE_W_COORDS "--include-w-coords"
 #define ARG__MTL_TAB_SPACE "--mtl-tab-space="
@@ -29,8 +29,8 @@
 #define MIN_MTL_SPACE 3
 #define MAX_MTL_SPACE 10
 
-#define LINE_BUFFER_LEN 100
-#define DEFAULT_DATA_LIMIT 1000000
+#define LINE_BUFFER_LEN 1000000
+#define DEFAULT_DATA_LIMIT 100
 #define MAX_DATA_LIMIT 99999999
 #define V_BUFFER_LEN 4
 #define VTVPVNF_BUFFER_LEN 3
@@ -38,12 +38,13 @@
 #define L_BUFFER_LEN 6
 #define MTL_FILENAME_BUFFER_LEN 50
 #define MTL_NAME_BUFFER_LEN 100
+#define HEADER_COMMENT_BUFFER_LEN 500
 
 char *_input_filename;
 char *_output_filename;
 
 bool _input_file_provided = false;
-bool _preserve_comments = false;
+bool _preserve_header_comments = false;
 bool _include_w_coords = false;
 bool _preserve_group_names = false;
 
@@ -57,6 +58,7 @@ double **_data_vn;
 char ***_data_f;
 char ** _data_mtllib;
 char ** _data_mtls;
+char ** _data_header_comments;
 int **_data_l;
 
 void _BUNDLER_HELP() {
@@ -134,8 +136,8 @@ int main( int argc, char* argv[] ) {
 				}
 			}
 		}
-		else if( strcmp( argv[i], ARG__PRESERVE_COMMENTS ) == 0 ) {
-			_preserve_comments = true;
+		else if( strcmp( argv[i], ARG__PRESERVE_HEADER_COMMENTS ) == 0 ) {
+			_preserve_header_comments = true;
 		}
 		else if( strcmp( argv[i], ARG__PRESERVE_GROUP_NAMES ) == 0 ) {
 			_preserve_group_names = true;
@@ -282,6 +284,7 @@ int main( int argc, char* argv[] ) {
 	_data_f = (char ***) malloc( _data_limit );
 	_data_mtllib = (char **) malloc( _data_limit );
 	_data_mtls = (char **) malloc( _data_limit );
+	_data_header_comments = (char **) malloc( _data_limit );
 	_data_l = (int **) malloc( _data_limit );
 	
 	int v_index = 0;
@@ -291,6 +294,7 @@ int main( int argc, char* argv[] ) {
 	int f_index = 0;
 	int mtllib_index = 0;
 	int mtls_index = 0;
+	int hc_index = 0;
 	int l_index = 0;
 	
 	FILE *in_handle = fopen( _input_filename, "r" );
@@ -302,12 +306,16 @@ int main( int argc, char* argv[] ) {
 	}
 	
 	char *line_buffer = (char *) malloc( LINE_BUFFER_LEN );
+	bool header_parsed = false;
+	
 	while( fgets( line_buffer, LINE_BUFFER_LEN, in_handle ) != NULL )  {
 		
 		// TODO: Check for mtllib and g
-		printf("%s", line_buffer);
 		
 		if( line_buffer[ 0 ] == 'v' ) {
+			
+			header_parsed = true;
+			
 			if( line_buffer[ 1 ] == 't' ) {
 				_data_vt[ vt_index ] = (double *) malloc( VTVPVNF_BUFFER_LEN );
 				char *ignore_item = (char *) malloc(2);
@@ -337,13 +345,16 @@ int main( int argc, char* argv[] ) {
 				_data_v[ v_index ] = (double *) malloc( V_BUFFER_LEN );
 				char *ignore_item = (char *) malloc(2);
 				
-				sscanf( line_buffer, "%s %lf %lf %lf %lf", &( _data_v[ v_index ][ 0 ] ),
+				sscanf( line_buffer, "%s %lf %lf %lf %lf", ignore_item, &( _data_v[ v_index ][ 0 ] ),
 					&( _data_v[ v_index ][ 1 ] ), &( _data_v[ v_index ][ 2 ] ),
 					&( _data_v[ v_index ][ 3 ] ) );
 				++v_index;
 			}
 		}
 		else if( line_buffer[ 0 ] == 'f' ) {
+			
+			header_parsed = true;
+			
 			_data_f[ f_index ] = (char **) malloc( VTVPVNF_BUFFER_LEN );
 			for( int i = 0; i < VTVPVNF_BUFFER_LEN; i++ ) {
 				_data_f[ f_index ][ i ] = (char *) malloc( VALUE_BUFFER_LEN );
@@ -355,6 +366,9 @@ int main( int argc, char* argv[] ) {
 			++f_index;
 		}
 		else if( line_buffer[ 0 ] == 'l' ) {
+			
+			header_parsed = true;
+			
 			_data_l[ l_index ] = (int *) malloc( L_BUFFER_LEN );
 			char *ignore_item = (char *) malloc(2);
 			
@@ -364,11 +378,19 @@ int main( int argc, char* argv[] ) {
 				&( _data_l[ l_index ][ 5 ] ) );
 			++l_index;
 		}
+		else if( line_buffer[ 0 ] == '#' && !header_parsed ) {
+			int line_buf_len = strlen( line_buffer );
+			_data_header_comments[ hc_index ] = (char *) malloc( line_buf_len );
+			strncpy( _data_header_comments[ hc_index ], line_buffer, line_buf_len );
+			_data_header_comments[ hc_index++ ][ line_buf_len ] = '\0';
+		}
 		else {
 			char *mtllib_found = strstr( line_buffer, "mtllib" );
 			
 			// IF line starts with 'mtllib'
 			if( line_buffer - mtllib_found == 0 ) {
+				
+				header_parsed = true;
 				
 				// Two name stores in case material
 				// name is listed before material
@@ -385,9 +407,6 @@ int main( int argc, char* argv[] ) {
 					initial_name_store : fallback_name_store;
 				_data_mtllib[ mtllib_index ] = mtl_filename;
 				
-				free( initial_name_store );
-				free( fallback_name_store );
-				
 				++mtllib_index;
 			}
 			else {
@@ -395,13 +414,14 @@ int main( int argc, char* argv[] ) {
 				
 				if( line_buffer - mtls_found == 0 ) {
 					
+					header_parsed = true;
+					
 					char *mtl_name = (char *) malloc( MTL_NAME_BUFFER_LEN );
 					
 					char *ignore_item = (char *) malloc(2);
 					sscanf( line_buffer, "%s %s", ignore_item, mtl_name );
 					
 					_data_mtls[ mtls_index ] = mtl_name;
-					free( mtl_name );
 					
 					++mtls_index;
 				}
