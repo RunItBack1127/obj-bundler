@@ -82,7 +82,7 @@ OBJGroup **obj_groups;
 char **data_header_comments;
 
 void _BUNDLER_HELP() {
-	
+	printf( "--preserve-header-comments\n--preserve-group-names\n--include-w-coords\n--mtl-tab-space\n--set-data-limit\n" );
 	exit( EXIT_SUCCESS );
 }
 
@@ -109,6 +109,9 @@ void _BUNDLER_ERROR( short error, char *payload ) {
 			break;
 		case _ERROR_INVALID_COMMAND_PROVIDED:
 			fprintf( stderr, "Invalid command provided [%s]\nUse --help flag for list of valid commands\n", payload );
+			break;
+		case _ERROR_IO_ERROR_OCCURRED:
+			fprintf( stderr, "Internal I/O error occurred\nCannot open either provided input or output file\n" );
 			break;
 	}
 }
@@ -328,8 +331,8 @@ int main( int argc, char* argv[] ) {
 	FILE *in_handle = fopen( _input_filename, "r" );
 	FILE *out_handle = fopen( _output_filename, "w" );
 	
-	if( in_handle == NULL ) {
-		// TODO: IO error
+	if( in_handle == NULL || out_handle == NULL ) {
+		_BUNDLER_ERROR( _ERROR_IO_ERROR_OCCURRED, NULL );
 		exit( EXIT_FAILURE );
 	}
 	
@@ -515,6 +518,7 @@ int main( int argc, char* argv[] ) {
 	if( _include_w_coords ) {
 		fprintf( out_handle, "%s\n", "INCLUDE_W_COORDS" );
 	}
+	fprintf( out_handle, "MTL_TAB_SPACING=%u\n", _mtl_spacing );
 	
 	for( int i = 0; i < obj_index; i++ ) {
 		// Print group name and shading data
