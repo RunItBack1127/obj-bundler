@@ -31,6 +31,7 @@
 #define LINE_BUFFER_LEN 100
 #define DEFAULT_DATA_LIMIT 1000000
 #define MAX_DATA_LIMIT 99999999
+#define VALUE_BUFFER_LEN 50
 
 char *_input_filename;
 char *_output_filename;
@@ -202,7 +203,7 @@ int main( int argc, char* argv[] ) {
 						}
 						
 						_data_limit = atoi( limit_buffer );
-						if( _data_limit > MAX_DATA_LIMIT ) {
+						if( _data_limit > MAX_DATA_LIMIT || _data_limit < 0 ) {
 							_BUNDLER_ERROR( _ERROR_INVALID_DATA_LIMIT_PROVIDED, limit_buffer );
 							exit( EXIT_FAILURE );
 						}
