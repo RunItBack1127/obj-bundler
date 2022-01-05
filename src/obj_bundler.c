@@ -138,7 +138,9 @@ OBJGroup *_construct_obj_group() {
 	objg->data_mtllib = (char **) malloc( _data_limit );
 	objg->data_mtls = (char **) malloc( _data_limit );
 	objg->data_l = (int **) malloc( _data_limit );
+	
 	objg->shading = (char *) malloc( SHADING_BUFFER_LEN );
+	strncpy( objg->shading, "off", SHADING_BUFFER_LEN );
 	
 	objg->v_index = 0;
 	objg->vt_index = 0;
@@ -408,9 +410,12 @@ int main( int argc, char* argv[] ) {
 			}
 			char *ignore_item = (char *) malloc(1);
 			
-			sscanf( line_buffer, "%s %s %s %s %s", ignore_item, cobjg->data_f[ cobjg->f_index ][ 0 ],
+			if( sscanf( line_buffer, "%s %s %s %s %s", ignore_item, cobjg->data_f[ cobjg->f_index ][ 0 ],
 				cobjg->data_f[ cobjg->f_index ][ 1 ], cobjg->data_f[ cobjg->f_index ][ 2 ],
-				cobjg->data_f[ cobjg->f_index ][ 3 ] );
+				cobjg->data_f[ cobjg->f_index ][ 3 ] ) == 4 ) {
+
+				cobjg->data_f[ cobjg->f_index ][ 3 ][ 0 ] = '\0';
+			}
 			++cobjg->f_index;
 		}
 		else if( line_buffer[ 0 ] == 'l' ) {
@@ -498,8 +503,11 @@ int main( int argc, char* argv[] ) {
 		}
 	}
 	
+	// Account for first object
+	++obj_index;
+	
 	// Print the header comments
-	if(_preserve_header_comments) {
+	if( _preserve_header_comments ) {
 		for( int i = 0; i < hc_index; i++ ) {
 			fprintf( out_handle, "%s", data_header_comments[ i ] );
 		}
@@ -509,8 +517,9 @@ int main( int argc, char* argv[] ) {
 	}
 	
 	for( int i = 0; i < obj_index; i++ ) {
-		
+		// Print group name and shading data
 		fprintf( out_handle, "g %s\n", obj_groups[ i ]->name );
+		fprintf( out_handle, "s %s\n", obj_groups[ i ]->shading );
 		
 		// Print vertex data
 		fprintf( out_handle, "%s", "v " );
@@ -532,7 +541,7 @@ int main( int argc, char* argv[] ) {
 				fprintf( out_handle, "%s", " " );
 			}
 		}
-		fprintf( out_handle, "%s", "\n" );
+		fprintf( out_handle, "\n" );
 		
 		// Print vertex texture data
 		fprintf( out_handle, "%s", "vt " );
@@ -545,7 +554,7 @@ int main( int argc, char* argv[] ) {
 				fprintf( out_handle, "%s", " " );
 			}
 		}
-		fprintf( out_handle, "%s", "\n" );
+		fprintf( out_handle, "\n" );
 		
 		// Print vertex parameter data
 		fprintf( out_handle, "%s", "vp " );
@@ -558,6 +567,7 @@ int main( int argc, char* argv[] ) {
 				fprintf( out_handle, "%s", " " );
 			}
 		}
+		fprintf( out_handle, "\n" );
 		
 		// Print vertex normal data
 		fprintf( out_handle, "%s", "vn " );
@@ -570,11 +580,12 @@ int main( int argc, char* argv[] ) {
 				fprintf( out_handle, "%s", " " );
 			}
 		}
+		fprintf( out_handle, "\n" );
 		
 		// Print face data
 		fprintf( out_handle, "%s", "f " );
 		for( int s = 0; s < obj_groups[ i ]->f_index; s++ ) {
-			fprintf( out_handle, "%lf %lf %lf %lf",
+			fprintf( out_handle, "%s %s %s %s",
 				obj_groups[ i ]->data_f[ s ][ 0 ],
 				obj_groups[ i ]->data_f[ s ][ 1 ],
 				obj_groups[ i ]->data_f[ s ][ 2 ],
@@ -583,6 +594,7 @@ int main( int argc, char* argv[] ) {
 				fprintf( out_handle, "%s", " " );
 			}
 		}
+		fprintf( out_handle, "\n" );
 		
 		// Print line data
 		fprintf( out_handle, "%s", "l " );
@@ -597,6 +609,10 @@ int main( int argc, char* argv[] ) {
 			if( s < obj_groups[ i ]->l_index - 1 ) {
 				fprintf( out_handle, "%s", " " );
 			}
+		}
+		
+		if( i < obj_index - 1 ) {
+			fprintf( out_handle, "\n" );
 		}
 	}
 	
