@@ -36,6 +36,8 @@
 #define VTVPVNF_BUFFER_LEN 3
 #define VALUE_BUFFER_LEN 50
 #define L_BUFFER_LEN 6
+#define MTL_FILENAME_BUFFER_LEN 50
+#define MTL_NAME_BUFFER_LEN 100
 
 char *_input_filename;
 char *_output_filename;
@@ -53,6 +55,8 @@ double **_data_vt;
 double **_data_vp;
 double **_data_vn;
 char ***_data_f;
+char ** _data_mtllib;
+char ** _data_mtls;
 int **_data_l;
 
 void _BUNDLER_HELP() {
@@ -106,7 +110,7 @@ int main( int argc, char* argv[] ) {
 	bool ignore_next_arg = false;
 	for( int i = 1; i < argc; i++ ) {
 		if( ignore_next_arg ) {
-			ignore_next_arg = !ignore_next_arg;
+			ignore_next_arg = false;
 		}
 		else if( strcmp( argv[i], ARG__INPUT_FILENAME ) == 0 ) {
 			
@@ -276,6 +280,8 @@ int main( int argc, char* argv[] ) {
 	_data_vp = (double **) malloc( _data_limit );
 	_data_vn = (double **) malloc( _data_limit );
 	_data_f = (char ***) malloc( _data_limit );
+	_data_mtllib = (char **) malloc( _data_limit );
+	_data_mtls = (char **) malloc( _data_limit );
 	_data_l = (int **) malloc( _data_limit );
 	
 	int v_index = 0;
@@ -283,6 +289,8 @@ int main( int argc, char* argv[] ) {
 	int vp_index = 0;
 	int vn_index = 0;
 	int f_index = 0;
+	int mtllib_index = 0;
+	int mtls_index = 0;
 	int l_index = 0;
 	
 	FILE *in_handle = fopen( _input_filename, "r" );
@@ -356,14 +364,52 @@ int main( int argc, char* argv[] ) {
 				&( _data_l[ l_index ][ 5 ] ) );
 			++l_index;
 		}
-		else if( line_buffer[ 0 ] == 'g' ) {
-			
-		}
 		else {
+			char *mtllib_found = strstr( line_buffer, "mtllib" );
 			
+			// IF line starts with 'mtllib'
+			if( line_buffer - mtllib_found == 0 ) {
+				
+				// Two name stores in case material
+				// name is listed before material
+				// filename
+				// EX: mtllib asteroid asteroid.obj
+				char *initial_name_store = (char *) malloc( MTL_FILENAME_BUFFER_LEN );
+				char *fallback_name_store = (char *) malloc( MTL_FILENAME_BUFFER_LEN );
+				
+				char *ignore_item = (char *) malloc(2);
+				sscanf( line_buffer, "%s %s %s", ignore_item, initial_name_store,
+					fallback_name_store );
+					
+				char *mtl_filename = fallback_name_store == NULL ?
+					initial_name_store : fallback_name_store;
+				_data_mtllib[ mtllib_index ] = mtl_filename;
+				
+				free( initial_name_store );
+				free( fallback_name_store );
+				
+				++mtllib_index;
+			}
+			else {
+				char *mtls_found = strstr( line_buffer, "usemtl" );
+				
+				if( line_buffer - mtls_found == 0 ) {
+					
+					char *mtl_name = (char *) malloc( MTL_NAME_BUFFER_LEN );
+					
+					char *ignore_item = (char *) malloc(2);
+					sscanf( line_buffer, "%s %s", ignore_item, mtl_name );
+					
+					_data_mtls[ mtls_index ] = mtl_name;
+					free( mtl_name );
+					
+					++mtls_index;
+				}
+			}
 		}
 	}
 	
+	free( line_buffer );
 	fclose( in_handle );
 	fclose( out_handle );
 	
