@@ -7,25 +7,6 @@
 #include "commands.h"
 #include "errors.h"
 
-#define INPUT_FILE_EXT "obj"
-#define OUTPUT_FILE_EXT "objb"
-#define MIN_MTL_SPACE 3
-#define MAX_MTL_SPACE 10
-
-#define LINE_BUFFER_LEN 1000
-#define DEFAULT_DATA_LIMIT 10000000
-#define MAX_DATA_LIMIT 99999999
-#define VF_BUFFER_LEN 4
-#define VTVPVN_BUFFER_LEN 3
-#define VALUE_BUFFER_LEN 50
-#define L_BUFFER_LEN 6
-#define MTL_FILENAME_BUFFER_LEN 50
-#define MTL_NAME_BUFFER_LEN 100
-#define HEADER_COMMENT_BUFFER_LEN 500
-#define OBJ_GROUP_BUFFER_LEN 1000
-#define GROUP_NAME_BUFFER_LEN 100
-#define SHADING_BUFFER_LEN 3
-
 char *_input_filename;
 char *_output_filename;
 
@@ -39,6 +20,7 @@ unsigned int _data_limit = DEFAULT_DATA_LIMIT;
 
 OBJGroup **obj_groups;
 char **data_header_comments;
+char **data_mtllib;
 
 void _BUNDLER_HELP() {
 	printf( "--preserve-header-comments\n--preserve-group-names\n--include-w-coords\n--mtl-tab-space\n--set-data-limit\n" );
@@ -62,9 +44,6 @@ void _BUNDLER_ERROR( short error, char *payload ) {
 			break;
 		case _ERROR_INVALID_OUTPUT_FILE_PROVIDED:
 			fprintf( stderr, "Invalid output filename provided [%s]\nValid output filename must end with .%s extension\n", payload, OUTPUT_FILE_EXT );
-			break;
-		case _ERROR_INVALID_MTL_SPACE_PROVIDED:
-			fprintf( stderr, "Invalid spacing value provided [%s]\nValid spacing values range from %d-%d\n", payload, MIN_MTL_SPACE, MAX_MTL_SPACE );
 			break;
 		case _ERROR_INVALID_COMMAND_PROVIDED:
 			fprintf( stderr, "Invalid command provided [%s]\nUse --help flag for list of valid commands\n", payload );
@@ -97,9 +76,9 @@ OBJGroup *_construct_obj_group() {
 	objg->data_vp = (double **) malloc( _data_limit );
 	objg->data_vn = (double **) malloc( _data_limit );
 	objg->data_f = (char ***) malloc( _data_limit );
-	objg->data_mtllib = (char **) malloc( _data_limit );
-	objg->data_mtls = (char **) malloc( _data_limit );
 	objg->data_l = (int **) malloc( _data_limit );
+	
+	objg->data_mtl = NULL;
 	
 	objg->shading = (char *) malloc( SHADING_BUFFER_LEN );
 	strncpy( objg->shading, "off", SHADING_BUFFER_LEN );
@@ -109,8 +88,6 @@ OBJGroup *_construct_obj_group() {
 	objg->vp_index = 0;
 	objg->vn_index = 0;
 	objg->f_index = 0;
-	objg->mtllib_index = 0;
-	objg->mtls_index = 0;
 	objg->l_index = 0;
 	
 	return objg;
@@ -178,83 +155,48 @@ int main( int argc, char* argv[] ) {
 			_BUNDLER_HELP();
 		}
 		else {
-			char *mtl_cmd_found = strstr( argv[i], ARG__MTL_TAB_SPACE );
+			char *sdl_cmd_found = strstr( argv[ i ], ARG__SET_DATA_LIMIT );
 			
-			if( mtl_cmd_found != NULL ) {
-				int mtl_index = mtl_cmd_found - argv[i];
+			if( sdl_cmd_found != NULL ) {
+				int sdl_index = sdl_cmd_found - argv[i];
 				
-				// IF the command is the MTL command
-				if( mtl_index == 0 ) {
+				if( sdl_index == 0 ) {
+					int sdl_cmd_len = strlen( ARG__SET_DATA_LIMIT );
+					int user_sdl_cmd_len = strlen( argv[ i ] );
 					
-					// Parse the spacing provided with command
-					int mtl_cmd_len = strlen( ARG__MTL_TAB_SPACE );
-					int user_mtl_cmd_len = strlen( argv[ i ] );
-					
-					if( user_mtl_cmd_len == mtl_cmd_len ) {
-						_BUNDLER_ERROR( _ERROR_NO_MTL_SPACE_PROVIDED, NULL );
+					if( user_sdl_cmd_len == sdl_cmd_len ) {
+						_BUNDLER_ERROR( _ERROR_NO_DATA_LIMIT_PROVIDED, NULL );
 						exit( EXIT_FAILURE );
 					}
 					
-					int spacing_len = user_mtl_cmd_len - mtl_cmd_len;
-					char *space_buffer = (char *) malloc( spacing_len );
-					memcpy( space_buffer, &( argv[ i ][ user_mtl_cmd_len - spacing_len ] ), spacing_len );
-					space_buffer[ spacing_len ] = '\0';
+					int limit_len = user_sdl_cmd_len - sdl_cmd_len;
 					
-					_mtl_spacing = atoi( space_buffer );
-					if( _mtl_spacing > MAX_MTL_SPACE ) {
-						_BUNDLER_ERROR( _ERROR_INVALID_MTL_SPACE_PROVIDED, space_buffer );
+					char *limit_buffer = (char *) malloc( limit_len );
+					memcpy( limit_buffer, &( argv[ i ][ user_sdl_cmd_len - limit_len ] ), limit_len );
+					limit_buffer[ limit_len ] = '\0';
+					
+					// IF number of digits provided is greater
+					// than the number of digits in the max data
+					// limit, error out
+					if( limit_len > log2( MAX_DATA_LIMIT ) + 1 ) {
+						_BUNDLER_ERROR( _ERROR_EXCESS_DATA_LIMIT_PROVIDED, limit_buffer );
+						exit( EXIT_FAILURE );
+					}
+					
+					_data_limit = atoi( limit_buffer );
+					if( _data_limit > MAX_DATA_LIMIT || _data_limit < DEFAULT_DATA_LIMIT ) {
+						_BUNDLER_ERROR( _ERROR_INVALID_DATA_LIMIT_PROVIDED, limit_buffer );
 						exit( EXIT_FAILURE );
 					}
 				}
 				else {
-					_BUNDLER_ERROR( _ERROR_INVALID_MTL_SPACE_PROVIDED, NULL );
+					_BUNDLER_ERROR( _ERROR_INVALID_DATA_LIMIT_PROVIDED, NULL );
 					exit( EXIT_FAILURE );
 				}
 			}
 			else {
-				char *sdl_cmd_found = strstr( argv[ i ], ARG__SET_DATA_LIMIT );
-				
-				if( sdl_cmd_found != NULL ) {
-					int sdl_index = sdl_cmd_found - argv[i];
-					
-					if( sdl_index == 0 ) {
-						int sdl_cmd_len = strlen( ARG__SET_DATA_LIMIT );
-						int user_sdl_cmd_len = strlen( argv[ i ] );
-						
-						if( user_sdl_cmd_len == sdl_cmd_len ) {
-							_BUNDLER_ERROR( _ERROR_NO_DATA_LIMIT_PROVIDED, NULL );
-							exit( EXIT_FAILURE );
-						}
-						
-						int limit_len = user_sdl_cmd_len - sdl_cmd_len;
-						
-						char *limit_buffer = (char *) malloc( limit_len );
-						memcpy( limit_buffer, &( argv[ i ][ user_sdl_cmd_len - limit_len ] ), limit_len );
-						limit_buffer[ limit_len ] = '\0';
-						
-						// IF number of digits provided is greater
-						// than the number of digits in the max data
-						// limit, error out
-						if( limit_len > log2( MAX_DATA_LIMIT ) + 1 ) {
-							_BUNDLER_ERROR( _ERROR_EXCESS_DATA_LIMIT_PROVIDED, limit_buffer );
-							exit( EXIT_FAILURE );
-						}
-						
-						_data_limit = atoi( limit_buffer );
-						if( _data_limit > MAX_DATA_LIMIT || _data_limit < 0 ) {
-							_BUNDLER_ERROR( _ERROR_INVALID_DATA_LIMIT_PROVIDED, limit_buffer );
-							exit( EXIT_FAILURE );
-						}
-					}
-					else {
-						_BUNDLER_ERROR( _ERROR_INVALID_MTL_SPACE_PROVIDED, NULL );
-						exit( EXIT_FAILURE );
-					}
-				}
-				else {
-					_BUNDLER_ERROR( _ERROR_INVALID_COMMAND_PROVIDED, argv[ i ] );
-					exit( EXIT_FAILURE );
-				}
+				_BUNDLER_ERROR( _ERROR_INVALID_COMMAND_PROVIDED, argv[ i ] );
+				exit( EXIT_FAILURE );
 			}
 		}
 	}
@@ -301,6 +243,9 @@ int main( int argc, char* argv[] ) {
 	
 	data_header_comments = (char **) malloc( _data_limit );
 	int hc_index = 0;
+	
+	data_mtllib = (char **) malloc( _data_limit );
+	int mtllib_index = 0;
 	
 	char *line_buffer = (char *) malloc( LINE_BUFFER_LEN );
 	bool header_parsed = false;
@@ -439,11 +384,23 @@ int main( int argc, char* argv[] ) {
 				sscanf( line_buffer, "%s %s %s", ignore_item, initial_name_store,
 					fallback_name_store );
 					
-				char *mtl_filename = fallback_name_store == NULL ?
-					initial_name_store : fallback_name_store;
-				cobjg->data_mtllib[ cobjg->mtllib_index ] = mtl_filename;
+				char *mtl_filename = (char *) malloc( MTL_FILENAME_BUFFER_LEN );
+				if( !_verify_file_extension( initial_name_store, MTL_FILE_EXT ) ) {
+					strncpy( mtl_filename, initial_name_store, MTL_FILENAME_BUFFER_LEN );
+				}
+				else {
+					strncpy( mtl_filename, fallback_name_store, MTL_FILENAME_BUFFER_LEN );
+				}
+					
+				data_mtllib[ mtllib_index ] = (char *) malloc( MTL_FILENAME_BUFFER_LEN );
+				strncpy( data_mtllib[ mtllib_index ], mtl_filename, MTL_FILENAME_BUFFER_LEN );
 				
-				++cobjg->mtllib_index;
+				printf("\nTHE NAME: %s\n", data_mtllib[ mtllib_index ]);
+				printf("\nTHE NAME: %s\n", initial_name_store);
+				printf("\nTHE NAME: %s\n", fallback_name_store);
+				printf("\nTHE NAME: %s\n", mtl_filename);
+				
+				++mtllib_index;
 			}
 			else {
 				char *mtls_found = strstr( line_buffer, "usemtl" );
@@ -453,13 +410,12 @@ int main( int argc, char* argv[] ) {
 					header_parsed = true;
 					
 					char *mtl_name = (char *) malloc( MTL_NAME_BUFFER_LEN );
+					cobjg->data_mtl = (char *) malloc( MTL_NAME_BUFFER_LEN );
 					
 					char *ignore_item = (char *) malloc( sizeof( "usemtl" ) );
 					sscanf( line_buffer, "%s %s", ignore_item, mtl_name );
 					
-					cobjg->data_mtls[ cobjg->mtls_index ] = mtl_name;
-					
-					++cobjg->mtls_index;
+					strncpy( cobjg->data_mtl, mtl_name, MTL_NAME_BUFFER_LEN );
 				}
 			}
 		}
@@ -477,12 +433,25 @@ int main( int argc, char* argv[] ) {
 	if( _include_w_coords ) {
 		fprintf( out_handle, "%s\n", "INCLUDE_W_COORDS" );
 	}
-	fprintf( out_handle, "MTL_TAB_SPACING=%u\n", _mtl_spacing );
+	
+	fprintf( out_handle, "mtllib " );
+	for( int s = 0; s < mtllib_index; s++ ) {
+		fprintf( out_handle, "%s", data_mtllib[ s ] );
+		
+		if( s < mtllib_index - 1 ) {
+			fprintf( out_handle, " " );
+		}
+	}
+	fprintf( out_handle, "\n" );
 	
 	for( int i = 0; i < obj_index; i++ ) {
 		// Print group name and shading data
 		fprintf( out_handle, "g %s\n", obj_groups[ i ]->name );
 		fprintf( out_handle, "s %s\n", obj_groups[ i ]->shading );
+		
+		if( obj_groups[ i ]->data_mtl != NULL ) {
+			fprintf( out_handle, "usemtl %s\n", obj_groups[ i ]->data_mtl );
+		}
 		
 		// Print vertex data
 		fprintf( out_handle, "%s", "v " );
