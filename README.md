@@ -1,5 +1,5 @@
 # OBJ Bundler
-A C executable program for minifying and reducing the size of OBJ files, and for bundling both the object data and the associated material data into one central file. The purpose of this program is to demonstrate the ability to compress OBJ files for reducing project size, improving portability by including the MTL information, and maintaining the human readability of the original OBJ file.
+A C executable program for minifying and reducing the size of OBJ files, and for bundling all of the original associated OBJ data. The purpose of this program is to demonstrate the ability to compress OBJ files for reducing project size, along with maintaining the human readability of the original OBJ file.
 
 ***NOTE*** - This project is NOT meant to be used for production applications or projects - the application is only meant to be used for demonstrative purposes.
 
